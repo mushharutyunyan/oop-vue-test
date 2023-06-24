@@ -1,0 +1,53 @@
+version: '3'
+services:
+    web:
+        image: nginx:alpine
+        container_name: backend
+        volumes:
+            - "./etc/nginx/default.conf:/etc/nginx/conf.d/default.conf"
+            - "./etc/ssl:/etc/ssl"
+            - "./web:/var/www/html"
+            - "./etc/nginx/default.template.conf:/etc/nginx/conf.d/default.template"
+        ports:
+            - "8000:80"
+            - "3000:443"
+        environment:
+            - NGINX_HOST=${NGINX_HOST}
+        command: /bin/sh -c "envsubst '$$NGINX_HOST' < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+        restart: always
+        networks:
+            program:
+                ipv4_address: 172.20.0.10
+        depends_on:
+            - php
+            - frontend
+    php:
+        image: nanoninja/php-fpm:${PHP_VERSION}
+        restart: always
+        networks:
+            - program
+        volumes:
+            - "./etc/php/php.ini:/usr/local/etc/php/conf.d/php.ini"
+            - "./web:/var/www/html"
+    frontend:
+        image: node:current-alpine
+        working_dir: /home/node/app
+        volumes:
+            - ./frontend:/home/node/app
+        networks:
+            program:
+                  ipv4_address: 172.20.0.9
+        environment:
+            NODE_ENV: development
+        command: /bin/sh -c "npm install && npm run serve"
+networks:
+    program:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 172.20.0.0/16
+volumes:
+    program-backend:
+        driver: local
+    program-frontend:
+        driver: local
